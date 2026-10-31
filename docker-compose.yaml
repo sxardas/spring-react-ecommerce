@@ -1,0 +1,56 @@
+services:
+  ### (Keycloak) PostgreSQL & Service ###
+  service-postgres-kc:
+    image: postgres:18-alpine
+    container_name: service-postgres-kc
+    environment:
+      POSTGRES_DB: ${POSTGRESQL_DATABASE_KC}
+      POSTGRES_USER: ${POSTGRESQL_USERNAME_KC}
+      POSTGRES_PASSWORD: ${POSTGRESQL_PASSWORD_KC}
+    ports:
+      - "5430:5432"
+    networks:
+      - ecommerce
+    volumes:
+      - postgres_kc_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRESQL_USERNAME_KC} -d ${POSTGRESQL_DATABASE_KC}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  service-keycloak:
+    image: quay.io/keycloak/keycloak:26.8
+    container_name: service-keycloak
+    command: [ "start-dev" ]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://${POSTGRESQL_HOST_KC}:5432/${POSTGRESQL_DATABASE_KC}
+      KC_DB_USERNAME: ${POSTGRESQL_USERNAME_KC}
+      KC_DB_PASSWORD: ${POSTGRESQL_PASSWORD_KC}
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    networks:
+      - ecommerce
+    healthcheck:
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '200 OK'" ]
+      start_period: 30s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    depends_on:
+      service-postgres-kc:
+        condition: service_healthy
+
+networks:
+  ecommerce:
+    driver: bridge
+
+volumes:
+  postgres_kc_data:
