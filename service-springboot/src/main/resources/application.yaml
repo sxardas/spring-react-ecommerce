@@ -1,0 +1,35 @@
+server:
+  shutdown: graceful
+
+
+spring:
+  application:
+    name: service-springboot
+
+  threads:
+    virtual:
+      enabled: true
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+  liquibase:
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
+
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+        default-page-size: 20
+        one-indexed-parameters: true
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - metrics
